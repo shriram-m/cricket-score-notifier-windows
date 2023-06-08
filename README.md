@@ -1,8 +1,10 @@
-# Live Cricket Score Notifier
+# Live Cricket Score Notifier for Windows
 
 ## About
 
 Following a live cricket match while working on your computer could be challenging especially if you want to follow every important event like a batsman's milestone or a wicket. This project is designed just to solve this problem. You simply run the python application in the background and continue working on your computer. The python application notifies you based on the notification settings that you have configured.
+
+**Note:** I've found this repo extremely helpful in case of Test matches where you need not continuously keep following the score throughout the day.
 
 ### Notes
 
