@@ -1,0 +1,4 @@
+beautifulsoup4>=4.12.2
+plyer>=2.1.0
+lxml>=4.9.2
+Requests>=2.31.0
