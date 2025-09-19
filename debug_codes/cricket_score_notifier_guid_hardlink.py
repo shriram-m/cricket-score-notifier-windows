@@ -28,7 +28,7 @@
 ##=============================================================================
 ##  
 ## Author: Shriram M
-## Version: 2.0.0
+## Version: 1.5.0
 ##  
 ###############################################################################
 ##########################    Application Settings    #########################
@@ -36,12 +36,12 @@
 #                             Notification settings                            
 notify_after_every_inning = True
 notify_after_every_wicket = True
-notify_after_every_batter_milestone = False # TODO: Needs better logic to map and compare scores of batter1 and batter2 swapping around
+notify_after_every_batter_milestone = True
 notify_after_every_batting_team_milestone = True
-notify_after_every_x_overs = True
+notify_after_every_x_overs = False
 # Numbers of overs 'X' after which notification will be given. This is 
 # applicable only if 'notify_after_every_x_overs' is True
-x_overs_to_notify = 2
+x_overs_to_notify = 5
 
 #                                Other settings                                
 # Time interval (in seconds) between polling for live scores
@@ -62,47 +62,11 @@ from time import sleep
 import sys
 from plyer import notification
 
-print("\nLive Cricket Matches:")
-print("=====================")
-url = "http://static.cricinfo.com/rss/livescores.xml"
-r = requests.get(url)
-soup = BeautifulSoup(r.text,"lxml")
-
-i = 1
-links = []
-for item in soup.findAll("item"):
-    print(str(i) + ". " + item.find("description").text)
-    links.append(item.find("guid").text)
-    i = i + 1
-
-print("\n\nEnter match number or enter 0 to exit:")
-while True:
-    try:
-        user_input = int(input())
-    except NameError:
-        print("Invalid input. Try Again!")
-        continue
-    except SyntaxError:
-        print("Invalid input. Try Again!")
-    if user_input < 0 or user_input >= i:
-        print("Invalid input. Try Again!")
-        continue
-    elif user_input == 0:
-        sys.exit()
-    else:
-        break
-
-print("\n\n")
-
 previous_score_string = ""
 previous_runs_team = -1
-previous_runs_team_div_50 = -1
 
 previous_runs_batter1 = -1
 previous_runs_batter2 = -1
-previous_runs_batter1_div_50 = -1
-previous_runs_batter2_div_50 = -1
-
 previous_name_batter1 = ""
 previous_name_batter2 = ""
 
@@ -112,35 +76,19 @@ previous_overs = ""
 
 batter_notification_dict = {}
 
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3',
-    'Referer': 'https://www.espncricinfo.com/',
-    'Upgrade-Insecure-Requests': '1',
-    'Connection': 'keep-alive',
-    'Pragma': 'no-cache',
-    'Cache-Control': 'no-cache',
-}
-
 while True:
     try:
-        match_url = links[user_input - 1]
-        r = requests.get(match_url, headers = headers)
-
-        # # Save the response content to a file (optional)
-        # with open("response_content.html", "w", encoding="utf-8") as file:
-        #     file.write(r.text)
-
-        soup = BeautifulSoup(r.text,"lxml")
+        match_url = sys.argv[1]
+        r = requests.get(match_url)
+        soup = BeautifulSoup(r.text,"lxml") 
         score = soup.findAll("title")
 
         try:
             r.raise_for_status()
         except Exception as exc:
-            print("Exception occured: ", exc)
+            print ("Connection Failure. Try again!")
             continue
-
+        
         current_score_string = str(score[0].text)
         if current_score_string != previous_score_string:
             print(current_score_string + "\n")
@@ -148,13 +96,11 @@ while True:
 
             score_split = current_score_string.split(" ")
             runs = -1
-            runs_div_50 = -1
             wickets = -1
             batting_team = ""
             for string in score_split:
                 if "/" in string:
                     runs = int(string.split("/")[0].strip())
-                    runs_div_50 = int(runs / 50)
                     wickets = int(string.split("/")[1].strip())
                     batting_team = str(score_split[score_split.index(string) - 1]).strip()
                     break
@@ -163,48 +109,27 @@ while True:
             detailed_scores_split = detailed_scores.split(",")
             overs = detailed_scores_split[0].split(" ")[0].strip()
 
-            batter1_score_str = ""
-            batter1_score = -1
-            batter1_score_div_50 = -1
-            batter2_score_str = ""
-            batter2_score = -1
-            batter2_score_div_50 = -1
+            batter1_score = ""
+            batter2_score = ""
 
             if detailed_scores.count(",") >= 2:
-                batter1_score_str = detailed_scores_split[1].split(" ")[-1].strip()
-                batter1_name = detailed_scores_split[1].replace(batter1_score_str, "").strip()
-                batter1_score_str = batter1_score_str.replace("*", "")
-                if len(batter1_score_str) > 0:
-                    batter1_score = int(batter1_score_str)
-                    batter1_score_div_50 = int(batter1_score / 50)
+                batter1_score = detailed_scores_split[1].split(" ")[-1].strip()
+                batter1_name = detailed_scores_split[1].replace(batter1_score, "").strip()
+                batter1_score = batter1_score.replace("*", "")
 
             if detailed_scores.count(",") >= 3:
-                batter2_score_str = detailed_scores_split[2].split(" ")[-1].strip()
-                batter2_name = detailed_scores_split[2].replace(batter2_score_str, "").strip()
-                batter2_score_str = batter2_score_str.replace("*", "")
-                try:
-                    if len(batter2_score_str) > 0:
-                        batter2_score = int(batter2_score_str)
-                        batter2_score_div_50 = int(batter2_score / 50)
-                except Exception as e:
-                    pass
+                batter2_score = detailed_scores_split[2].split(" ")[-1].strip()
+                batter2_name = detailed_scores_split[2].replace(batter2_score, "").strip()
+                batter2_score = batter2_score.replace("*", "")
 
             if previous_wickets == -1:
                 previous_wickets = wickets
-
+            
             if previous_runs_team == -1:
                 previous_runs_team = runs
-                previous_runs_team_div_50 = runs_div_50
 
             if previous_batting_team == "":
                 previous_batting_team = batting_team
-
-            if previous_runs_batter1_div_50 == -1 and batter1_score_div_50 > -1:
-                previous_runs_batter1_div_50 = batter1_score_div_50
-
-            if previous_runs_batter2_div_50 == -1 and batter2_score_div_50 > -1:
-                previous_runs_batter2_div_50 = batter2_score_div_50
-
 
             title = ""
 
@@ -218,36 +143,27 @@ while True:
                     previous_overs = str(int(overs.replace(".6", "")) + 1)
                     if notify_after_every_x_overs and int(previous_overs) % x_overs_to_notify == 0:
                         title = "After " + previous_overs + " overs..."
-
+            
             if runs != previous_runs_team:
                 if notify_after_every_batting_team_milestone:
-                    # if runs % 50 == 0 and runs > 0:
-                    #     title = batting_team + " " + str(runs) + " !!"
-                    if runs_div_50 > 0 and runs_div_50 != previous_runs_team_div_50:
-                        title = batting_team + " " + str(int(runs_div_50 * 50)) + " !!"
+                    if runs % 50 == 0 and runs > 0:
+                        title = batting_team + " " + str(runs) + " !!"
                 previous_runs_team = runs
-                previous_runs_team_div_50 = runs_div_50
 
             if notify_after_every_batter_milestone:
-                if batter1_score > 0 and previous_runs_batter1_div_50 != batter1_score_div_50:
-                    if batter1_score_div_50 > 0:
-                        if not(batter1_name in batter_notification_dict and batter_notification_dict[batter1_name]):
-                            batter_notification_dict[batter1_name] = True
-                            title = batter1_name + " " + str(int(batter1_score_div_50 * 50)) + " !!"
-                    previous_runs_batter1_div_50 = batter1_score_div_50
+                if len(batter1_score) > 0 and int(batter1_score) % 50 == 0 and int(batter1_score) > 0:
+                    if not(batter1_name in batter_notification_dict and batter_notification_dict[batter1_name]):
+                        batter_notification_dict[batter1_name] = True
+                        title = batter1_name + " " + batter1_score + " !!"
                 elif batter1_name:
                     batter_notification_dict[batter1_name] = False
-                try:
-                    if batter2_score > 0 and previous_runs_batter2_div_50 != batter2_score_div_50:
-                        if batter2_score_div_50 > 0:
-                            if not(batter2_name in batter_notification_dict and batter_notification_dict[batter2_name]):
-                                batter_notification_dict[batter2_name] = True
-                                title = batter2_name + " " + str(int(batter2_score_div_50 * 50)) + " !!"
-                        previous_runs_batter2_div_50 = batter2_score_div_50
-                    elif batter2_name:
-                        batter_notification_dict[batter2_name] = False
-                except Exception as e:
-                    pass
+
+                if len(batter2_score) > 0 and int(batter2_score) % 50 == 0 and int(batter2_score) > 0:
+                    if not(batter2_name in batter_notification_dict and batter_notification_dict[batter2_name]):
+                        batter_notification_dict[batter2_name] = True
+                        title = batter2_name + " " + batter2_score + " !!"
+                elif batter2_name:
+                    batter_notification_dict[batter2_name] = False
 
             if wickets != previous_wickets:
                 if notify_after_every_wicket: 
